@@ -1,0 +1,12 @@
+[package]
+name = "gtfs"
+version = "0.1.0"
+authors = ["logandavies181 <logan.davies181@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gtfs-structures = "0.22.0"
+simple-error = "0.1.9"
+chrono = "0.4.19"
