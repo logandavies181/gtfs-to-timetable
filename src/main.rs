@@ -87,23 +87,6 @@ fn parse_time(seconds: u32) -> String {
     }
 }
 
-/*
-#[derive(Serialize, Deserialize)]
-struct DateInfo {
-    date: String,
-    route_id_to_route_info: HashMap<String, RouteInfo>,
-}
-
-impl DateInfo {
-    fn new() -> DateInfo {
-        DateInfo {
-            date: String::from(""),
-            route_id_to_route_info: HashMap::new(),
-        }
-    }
-}
-*/
-
 #[derive(Serialize, Deserialize)]
 struct RouteInfo {
     route_id: String,
@@ -123,14 +106,12 @@ impl RouteInfo {
 
 #[derive(Serialize, Deserialize)]
 struct TripInfo {
-    trip_id: String,
     times: HashMap<String, String>,
 }
 
 impl TripInfo {
     fn new() -> TripInfo {
         TripInfo {
-            trip_id: String::from(""),
             times: HashMap::new(),
         }
     }
@@ -181,10 +162,9 @@ fn main() -> Result<()> {
 // key in the map
 fn add_trip_to_route_info(riri: &mut HashMap<String, RouteInfo>, trip: &Trip) {
     let mut trip_info = TripInfo::new();
-    trip_info.trip_id = trip.id.clone();
 
     for stime in trip.stop_times.iter() {
-        trip_info.times.insert(parse_time(stime.arrival_time.expect("failed4")), stime.stop.name.clone());
+        trip_info.times.insert(parse_time(stime.arrival_time.expect("failed4")), stime.stop.id.clone());
     }
 
     let route_id = trip.route_id.clone();
