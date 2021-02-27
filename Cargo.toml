@@ -7,6 +7,10 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-gtfs-structures = "0.22.0"
+#gtfs-structures = "0.22.0"
+gtfs-structures = { path = "../gtfs_structure" }
 simple-error = "0.1.9"
 chrono = "0.4.19"
+serde_json = "1.0.63"
+serde_derive = "1.0.123"
+serde = { version = "1.0.123", features = ["derive"] }

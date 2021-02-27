@@ -74,11 +74,11 @@ fn push_value_to_hashmap_vec(hash: &mut HashMap<String, Vec<String>>, key: Strin
     }
 }
 
+// Parse u32 number of seconds into HH:MM
 fn parse_time(seconds: u32) -> String {
     let mut minutes = seconds / 60;
     let hours = minutes / 60;
     minutes = minutes - hours * 60;
-
 
     if minutes < 10 {
         String::from(format!("{}:0{}", hours, minutes))
@@ -86,6 +86,23 @@ fn parse_time(seconds: u32) -> String {
         String::from(format!("{}:{}", hours, minutes))
     }
 }
+
+/*
+#[derive(Serialize, Deserialize)]
+struct DateInfo {
+    date: String,
+    route_id_to_route_info: HashMap<String, RouteInfo>,
+}
+
+impl DateInfo {
+    fn new() -> DateInfo {
+        DateInfo {
+            date: String::from(""),
+            route_id_to_route_info: HashMap::new(),
+        }
+    }
+}
+*/
 
 #[derive(Serialize, Deserialize)]
 struct RouteInfo {
@@ -129,58 +146,77 @@ fn main() -> Result<()> {
     let dat = Dat::from_gtfs(gtfs);
     println!("Parsed gtfs data in: {}s", parse_dat_time.elapsed().as_secs());
 
-    let services = dat.date_to_sids.get("2021-01-20").expect("failed");
-    for s in services.iter() {
-        println!("{}", s);
-    }
-
-    let mut route_id_to_route_info: HashMap<String, RouteInfo> = HashMap::new();
+    /*
     for tripid in dat.sid_to_trips.get("Rail MTuWThF-XHol").expect("failed2").iter(){
         let trip = dat.g.trips.get(tripid.as_str()).expect("failed3");
-        //trip_info.direction = format!("{:?}", trip.direction_id.expect(""));
-        //trip_info.route_id = trip.route_id.clone();
         add_trip_to_route_info(&mut route_id_to_route_info, trip);
+    }
+    */
+    for (date, sids) in dat.date_to_sids {
+        let mut route_id_to_route_info: HashMap<String, RouteInfo> = HashMap::new();
+        for sid in sids {
+            for trip_id in dat.sid_to_trips.get(sid.as_str()).expect("failed2").iter() {
+                let trip = dat.g.trips.get(trip_id.as_str()).expect("failed3");
+                add_trip_to_route_info(&mut route_id_to_route_info, trip);
+            }
+        }
 
+        for (key, value) in route_id_to_route_info.iter() {
+            let data = serde_json::to_string(&value)?;
+            std::fs::create_dir_all(format!("output/{}", date))?;
+            std::fs::write(format!("output/{}/{}.json", date, key), data)?;
+        }
     }
 
+    /*
     let j = serde_json::to_string(&route_id_to_route_info)?;
 
     println!("{}", j);
+    */
 
     Ok(())
 }
 
+// Gets all of the stop times and direction from a trip and adds it to the corresponding
+// key in the map
 fn add_trip_to_route_info(riri: &mut HashMap<String, RouteInfo>, trip: &Trip) {
-        let mut trip_info = TripInfo::new();
-        trip_info.trip_id = trip.id.clone();
+    let mut trip_info = TripInfo::new();
+    trip_info.trip_id = trip.id.clone();
 
-        for stime in trip.stop_times.iter() {
-            trip_info.times.insert(parse_time(stime.arrival_time.expect("failed4")), stime.stop.name.clone());
+    for stime in trip.stop_times.iter() {
+        trip_info.times.insert(parse_time(stime.arrival_time.expect("failed4")), stime.stop.name.clone());
+    }
+
+    let route_id = trip.route_id.clone();
+    let route_info = riri.entry(route_id.clone());
+    match route_info {
+        std::collections::hash_map::Entry::Vacant(_) => {
+            let mut new_route_info = RouteInfo::new();
+            new_route_info.route_id = route_id.clone();
+            match trip.direction_id {
+                Some(DirectionType::Inbound) => {
+                    new_route_info.inbound.push(trip_info);
+                    riri.insert(route_id.clone(), new_route_info);
+                },
+                Some(DirectionType::Outbound) => {
+                    new_route_info.outbound.push(trip_info);
+                    riri.insert(route_id.clone(), new_route_info);
+                },
+                None => panic!("ahhhhh")
+            };
+        },
+        std::collections::hash_map::Entry::Occupied(mut ri) => {
+            match trip.direction_id {
+                Some(DirectionType::Inbound) => {
+                    ri.get_mut().inbound.push(trip_info);
+                },
+                Some(DirectionType::Outbound) => {
+                    ri.get_mut().outbound.push(trip_info);
+                },
+                None => panic!("ahhhhh")
+            };
         }
-
-        let trip_id = trip.id.clone();
-        let route_id = trip.route_id.clone();
-        let route_info = riri.entry(trip_id);
-        match route_info {
-            std::collections::hash_map::Entry::Vacant(_) => {
-                let mut new_route_info = RouteInfo::new();
-                new_route_info.route_id = route_id.clone();
-                match trip.direction_id {
-                    Some(DirectionType::Inbound) => {
-                        new_route_info.inbound.push(trip_info);
-                        riri.insert(route_id.clone(), new_route_info);
-                    },
-                    Some(DirectionType::Outbound) => {
-                        new_route_info.outbound.push(trip_info);
-                        riri.insert(route_id.clone(), new_route_info);
-                    },
-                    None => panic!("ahhhhh")
-                };
-            },
-            std::collections::hash_map::Entry::Occupied(_) => {
-
-            }
-        }
+    }
 }
 
 /* TODO:
